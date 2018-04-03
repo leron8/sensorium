@@ -15,25 +15,62 @@ export const clusterCreation = functions.firestore
         console.log('sensateData',sensate);
 
         const sensatesDoB = sensate.dateTimeOfBirth;
-        const sensatesLanguages = sensate.languagesSpoken;
+        /*const sensatesLanguages = sensate.languagesSpoken;
         const sensatesHobbies = sensate.hobbies;
         const sensatesInterests = sensate.interests;
         const sensatesSkills = sensate.skills;
-        const sensatesShowsCharacter = sensate.showsCharacter;
+        const sensatesShowsCharacter = sensate.showsCharacter;*/
 
-        db.collection('clusters').get()//filter here
-        .then((snapshot) => {
+        const clustersRef = db.collection('clusters');
+        const clusters = clustersRef.where('type','==','birthdate')
+            .where('typeData', '==', sensatesDoB);
+        
+        clusters.get().then((clustersFiltered) => {
 
-            const clusters = snapshot;
+            if(clustersFiltered){
+                //add sensate to clusters
+                 clustersFiltered.forEach((cluster:any) => {
+                    const clusterType = cluster.data().type;
+                    
+                    const sensates = cluster.sensates;
+                    sensates[sensate.uid] = true;
 
-            clusters.forEach((cluster) => {
-                const clusterType = cluster.data().type;
-                const clusterTypeData = cluster.data().typeData;
-                
-                //Apply rules for clusterCreation
+                    switch (clusterType){
+                        case 'birthdate':
+                            clustersRef.doc(cluster.id).update(sensates).then((sensateAddedResponse:any)=>{
+                                console.log('Added to birthdate cluster')
+                            }).catch((err)=>{
+                                console.log(err);
+                            });
+                            break;
+                    }
 
-            });
+                    resolve('Ok, sensate added');
 
+                });
+            }else{
+                //add clusters
+                const sensates = {};
+                sensates[sensate.uid] = true;
+                const newClusterType = {
+                    id: new Date().getTime(),
+                    name: '',
+                    type: 'birthdate',
+                    typeData: sensatesDoB,
+                    sensates: sensates,
+                    posts: {},
+                    creation: new Date()
+                };
+
+                clustersRef.add(newClusterType).then((responseAdd)=>{
+                    resolve('Cluster created');
+                }).catch((err)=>{
+                    reject(err);
+                })
+            }
+
+        }).catch((err)=>{
+            reject(err);
         });
 
     });
